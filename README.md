@@ -4,11 +4,10 @@ Custom integration for Danfoss Icon floor heating, through the Icon **App module
 (088U1101, Wi-Fi)**. It runs inside Home Assistant: no add-on, no MQTT broker,
 no Java.
 
-> **Status:** early. The cloud protocol layer is proven on DEVIreg Smart
-> thermostats, and the Icon logic is ported from two working Java
-> implementations, but this integration has only been tested against a
-> simulated master controller so far. Reports from real systems are welcome:
-> please attach the diagnostics download to issues.
+> **Status:** working. Tested on a real Danfoss Icon system with the App
+> module: pairing, room discovery, live updates and temperature control all
+> work out of the box. Still a young project, so reports from other systems
+> are welcome: please attach the diagnostics download to issues.
 
 ## How it works
 
