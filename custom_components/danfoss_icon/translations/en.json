@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pair with Danfoss Icon",
+        "description": "In the Danfoss Icon app on Android, open Settings > Share house and enter the one-time code here (dashes are fine). Keep the app open on that screen until pairing finishes. Home Assistant joins your house as another user, and every room on the master controller is added.",
+        "data": {
+          "otp": "One-time code",
+          "user_name": "Name shown in the app"
+        }
+      },
+      "reconfigure": {
+        "title": "Pair again",
+        "description": "Generate a new one-time code in the Danfoss Icon app (Settings > Share house) to pair Home Assistant with the same house again.",
+        "data": {
+          "otp": "One-time code",
+          "user_name": "Name shown in the app"
+        }
+      }
+    },
+    "error": {
+      "invalid_otp": "The code was rejected or has expired. Generate a new one in the app and try again.",
+      "cannot_connect": "Could not reach the Danfoss cloud relay.",
+      "not_icon": "The shared house has no Danfoss Icon master controller.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This house is already configured.",
+      "reconfigure_successful": "Paired again successfully.",
+      "wrong_house": "That code belongs to a different house."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "cloud_connection": {
+        "name": "Cloud connection"
+      },
+      "connection_lost": {
+        "name": "Thermostat connection lost"
+      }
+    },
+    "number": {
+      "at_home_temperature": {
+        "name": "At home temperature"
+      },
+      "away_temperature": {
+        "name": "Away temperature"
+      },
+      "asleep_temperature": {
+        "name": "Asleep temperature"
+      },
+      "min_floor_temperature": {
+        "name": "Minimum floor temperature"
+      },
+      "max_floor_temperature": {
+        "name": "Maximum floor temperature"
+      },
+      "vacation_temperature": {
+        "name": "Vacation temperature"
+      },
+      "pause_temperature": {
+        "name": "Pause temperature"
+      }
+    },
+    "sensor": {
+      "room_temperature": {
+        "name": "Room temperature"
+      },
+      "floor_temperature": {
+        "name": "Floor temperature"
+      },
+      "schedule_period": {
+        "name": "Schedule period",
+        "state": {
+          "at_home": "At home",
+          "away": "Away",
+          "asleep": "Asleep",
+          "fatal": "Error"
+        }
+      }
+    }
+  }
+}
