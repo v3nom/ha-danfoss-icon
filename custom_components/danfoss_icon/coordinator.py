@@ -26,6 +26,10 @@ class IconCoordinator(DataUpdateCoordinator[IconHouse]):
         self._remove_listener: Callable[[], None] | None = None
         self._device_info: tuple | None = None
 
+    async def _async_update_data(self) -> IconHouse:
+        """Nothing to poll; the master pushes. Keeps manual refreshes harmless."""
+        return self.house
+
     async def async_start(self) -> None:
         """Connect and start receiving pushed updates."""
         self._remove_listener = self.house.add_listener(self._handle_update)

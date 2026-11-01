@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import IconHouse, IconRoom
@@ -85,7 +85,7 @@ RoomEntityFactory = Callable[[IconRoom], Iterable[tuple[str, Callable[[], Entity
 
 def setup_room_entities(
     coordinator: IconCoordinator,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
     factory: RoomEntityFactory,
 ) -> None:
     """Add room entities now and whenever new rooms or values show up."""

@@ -7,6 +7,12 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 
 from . import IconConfigEntry
+from .icon import Global, MsgClass
+
+_SERIAL = {
+    (MsgClass.CLOUDIO_DEVICEGLOBAL, Global.SERIALNUMBER),
+    (MsgClass.DEVICEGLOBAL, Global.SERIALNUMBER),
+}
 
 
 async def async_get_config_entry_diagnostics(
@@ -20,7 +26,10 @@ async def async_get_config_entry_diagnostics(
         "master_peer_id": f"{house.peer_id[:8]}…",
         "last_error": house.last_error,
         "messages_received": house.messages_received,
-        "house_values": {f"{cls}/{code}": value for (cls, code), value in house.values.items()},
+        "house_values": {
+            f"{cls}/{code}": "**REDACTED**" if (cls, code) in _SERIAL else value
+            for (cls, code), value in house.values.items()
+        },
         "rooms": [
             {
                 "number": room.number,

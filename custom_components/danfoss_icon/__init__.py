@@ -6,10 +6,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 
 from .api import CannotConnect, IconHouse
 from .const import CONF_PEER_ID, CONF_PRIVATE_KEY
 from .coordinator import IconCoordinator
+from .entity import master_device_info
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -31,6 +33,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: IconConfigEntry) -> bool
         raise ConfigEntryNotReady(str(err)) from err
 
     entry.runtime_data = coordinator
+    # Room devices point at the master via via_device, so it must exist first
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, **master_device_info(coordinator)
+    )
     entry.async_on_unload(coordinator.async_stop)
 
     async def _on_stop(_event: Event) -> None:

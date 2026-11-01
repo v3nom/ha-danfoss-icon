@@ -18,6 +18,7 @@ from homeassistant.const import STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.setup import async_setup_component
 
 from .fake_sdg import FakeGrid, FakeMaster
 from .helpers import BEDROOM, INITIAL, LIVING, dec, house_values
@@ -142,6 +143,14 @@ async def test_setup_creates_entities(hass: HomeAssistant, socket_enabled) -> No
         assert living.attributes["temperature"] == 22
         assert living.attributes["max_temp"] == 28
         assert living.attributes["schedule_period"] == "at_home"
+
+        # A manual refresh (update_entity) must not make entities unavailable
+        assert await async_setup_component(hass, "homeassistant", {})
+        await hass.services.async_call(
+            "homeassistant", "update_entity", {"entity_id": "climate.living_room"}, blocking=True
+        )
+        await hass.async_block_till_done()
+        assert hass.states.get("climate.living_room").state == HVACMode.AUTO
 
         bedroom = hass.states.get("climate.bedroom")
         assert bedroom.state == HVACMode.HEAT

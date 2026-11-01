@@ -8,7 +8,7 @@ from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import IconConfigEntry
 from .api import IconError, IconRoom
@@ -28,7 +28,7 @@ ROOM_MODE_NAMES = {
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: IconConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up one climate entity per room."""
     coordinator = entry.runtime_data

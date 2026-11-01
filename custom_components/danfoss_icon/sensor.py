@@ -14,7 +14,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import IconConfigEntry
 from .api import IconRoom
@@ -76,7 +76,7 @@ SENSORS: tuple[IconSensorDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: IconConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up room sensors as their values show up."""
     coordinator = entry.runtime_data

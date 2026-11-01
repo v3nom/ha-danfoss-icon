@@ -23,6 +23,7 @@ from .sdg import Grid, SDGError, generate_private_key
 _LOGGER = logging.getLogger(__name__)
 
 RECONNECT_DELAY = 10
+MAX_RECONNECT_DELAY = 300
 PING_AFTER = 15
 STALE_AFTER = 30
 WATCHDOG_INTERVAL = 5
@@ -73,6 +74,8 @@ async def pair(
         except (TimeoutError, SDGError) as err:
             # A wrong or expired code shows up as a refusal or a timeout
             raise InvalidOtp(str(err)) from err
+        except OSError as err:
+            raise CannotConnect(str(err)) from err
         try:
             config = await grid.fetch_house_config(phone_id, user_name)
         except (OSError, TimeoutError, SDGError, ValueError) as err:
@@ -200,6 +203,7 @@ class IconHouse:
         self._listeners: list[Callable[[], None]] = []
         self._room_listeners: list[Callable[[IconRoom], None]] = []
         self._refreshed: set[int] = set()
+        self._children: set[asyncio.Task] = set()
         self.rooms = {number: IconRoom(self, number) for number in range(icon.MAX_ROOMS)}
         self.values: dict[tuple[int, int], Any] = {}
         self.connected = False
@@ -288,6 +292,7 @@ class IconHouse:
             except asyncio.CancelledError:
                 pass
             self._task = None
+        await self._stop_children()
         self._close_tunnel()
         if self._grid:
             await self._grid.close()
@@ -310,6 +315,7 @@ class IconHouse:
             self._notify()
 
     async def _run(self) -> None:
+        failures = 0
         while not self._stopping:
             try:
                 await self._session()
@@ -318,8 +324,25 @@ class IconHouse:
             except Exception as err:  # noqa: BLE001
                 self.last_error = f"{type(err).__name__}: {err}"
                 _LOGGER.warning("Danfoss Icon master offline: %s", self.last_error)
+            # A session that got connected resets the backoff; repeated
+            # failures (e.g. the module's connection limit) back off to 5 min
+            failures = 0 if self.connected else failures + 1
             self._close_tunnel()
-            await asyncio.sleep(RECONNECT_DELAY)
+            await asyncio.sleep(
+                min(RECONNECT_DELAY * 2 ** max(failures - 1, 0), MAX_RECONNECT_DELAY)
+            )
+
+    def _spawn(self, coro) -> None:
+        """Run a helper task that ends with the current session."""
+        task = asyncio.get_running_loop().create_task(coro)
+        self._children.add(task)
+        task.add_done_callback(self._children.discard)
+
+    async def _stop_children(self) -> None:
+        tasks = list(self._children)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _session(self) -> None:
         grid = await self.get_grid()
@@ -331,9 +354,8 @@ class IconHouse:
         _LOGGER.info("Connected to Danfoss Icon master")
         self._notify()
 
-        loop = asyncio.get_running_loop()
-        watchdog = loop.create_task(self._watchdog())
-        scan = loop.create_task(self._scan())
+        self._spawn(self._watchdog())
+        self._spawn(self._scan())
         first = True
         try:
             while True:
@@ -341,10 +363,9 @@ class IconHouse:
                 if first:
                     # The first message carries one garbage byte, a known quirk
                     data, first = data[1:], False
-                await self._handle(data)
+                self._handle(data)
         finally:
-            watchdog.cancel()
-            scan.cancel()
+            await self._stop_children()
 
     async def _scan(self) -> None:
         """Ask for house info and every room's name; named rooms exist."""
@@ -353,7 +374,10 @@ class IconHouse:
                 await self._send(icon.read_request(msg_class, code))
             for number in range(icon.MAX_ROOMS):
                 await self._send(icon.read_request(icon.room_class(number), Room.NAME))
-        except (OSError, IconError) as err:
+            # Rooms known from an earlier session may have changed meanwhile
+            for room in self.existing_rooms:
+                await self._refresh_room(room)
+        except IconError as err:
             # The receive loop notices the broken tunnel and reconnects
             _LOGGER.debug("Room scan interrupted: %s", err)
 
@@ -372,10 +396,10 @@ class IconHouse:
                     await self._send(
                         icon.read_request(MsgClass.ALL_ROOMS, icon.House.VACATION_SETPOINT)
                     )
-                except (OSError, IconError) as err:
+                except IconError as err:
                     _LOGGER.debug("Ping failed: %s", err)
 
-    async def _handle(self, data: bytes) -> None:
+    def _handle(self, data: bytes) -> None:
         self._last_packet = time.monotonic()
         self.messages_received += 1
         _LOGGER.debug("Master sent %s", data.hex())
@@ -399,7 +423,8 @@ class IconHouse:
         if changed:
             self._notify()
         for room in new_rooms:
-            await self._refresh_room(room)
+            # Not awaited here, so a slow send never stalls receiving
+            self._spawn(self._refresh_room(room))
 
     def _store_room(self, room: IconRoom, code: int, payload: bytes) -> bool:
         try:
@@ -434,8 +459,11 @@ class IconHouse:
             return
         self._refreshed.add(room.number)
         msg_class = icon.room_class(room.number)
-        for code in icon.ROOM_REFRESH:
-            await self._send(icon.read_request(msg_class, code))
+        try:
+            for code in icon.ROOM_REFRESH:
+                await self._send(icon.read_request(msg_class, code))
+        except IconError as err:
+            _LOGGER.debug("Refresh of room %d interrupted: %s", room.number, err)
 
     def update_room(self, room: IconRoom, code: Room, value: Any) -> None:
         """Apply a value we just wrote, so the UI does not wait for the echo."""
@@ -453,7 +481,10 @@ class IconHouse:
     async def _send(self, data: bytes) -> None:
         if not self._tunnel or not self.connected:
             raise IconError("The Icon master controller is not connected")
-        await self._tunnel.send(data)
+        try:
+            await self._tunnel.send(data)
+        except (OSError, SDGError) as err:
+            raise IconError(f"Sending to the Icon master controller failed: {err}") from err
 
     async def write_decimal(self, msg_class: int, code: int, value: float) -> None:
         await self._send(icon.write_decimal(msg_class, code, value))

@@ -13,7 +13,7 @@ from homeassistant.components.number import (
 from homeassistant.const import EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import IconConfigEntry
 from .api import IconError, IconRoom
@@ -65,7 +65,7 @@ HOUSE_NUMBERS: tuple[IconNumberDescription, ...] = (
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: IconConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up setpoint entities."""
     coordinator = entry.runtime_data

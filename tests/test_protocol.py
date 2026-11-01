@@ -167,9 +167,14 @@ async def test_house_reconnects(socket_enabled) -> None:
         with patch("custom_components.danfoss_icon.api.RECONNECT_DELAY", 0.1):
             await house.start()
             await _wait_for(lambda: house.connected and len(house.existing_rooms) == 2)
+            away = icon.read_request(LIVING, Room.SETPOINT_AWAY)
+            await _wait_for(lambda: any(away in data for data in master.received))
+            before = sum(data.count(away) for data in master.received)
             master.tunnel.writer.close()
             await _wait_for(lambda: master.connections == 2 and house.connected)
             assert len(house.existing_rooms) == 2
+            # Known rooms are refreshed again after reconnecting
+            await _wait_for(lambda: sum(data.count(away) for data in master.received) > before)
     finally:
         await house.stop()
         await grid.stop()
